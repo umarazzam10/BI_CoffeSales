@@ -767,53 +767,6 @@ def display_dashboard():
                         </div>
                         """, unsafe_allow_html=True)
     
-    # Prediction Section
-    st.markdown("## 🔮 Prediction")
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.selectbox("Jenis Prediksi", ["Prediksi Penjualan"], key="pred_type")
-        st.selectbox("Periode", ["3 hari kedepan"], key="pred_period")
-        
-        if st.button("🎯 Generate Prediksi", type="primary"):
-            st.success("Prediksi berhasil di-generate!")
-    
-    with col2:
-        col2_1, col2_2, col2_3, col2_4 = st.columns(4)
-        
-        with col2_1:
-            st.markdown("""
-            <div class="prediction-card">
-                <div style="font-size: 0.9rem; opacity: 0.8;">Prediksi 3 Hari</div>
-                <div style="font-size: 1.8rem; font-weight: bold;">$60K</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2_2:
-            st.markdown("""
-            <div class="prediction-card">
-                <div style="font-size: 0.9rem; opacity: 0.8;">Confidence</div>
-                <div style="font-size: 1.8rem; font-weight: bold;">89.6%</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2_3:
-            st.markdown("""
-            <div class="prediction-card">
-                <div style="font-size: 0.9rem; opacity: 0.8;">⚠️ Risk Level</div>
-                <div style="font-size: 1.5rem; font-weight: bold;">17.0%</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2_4:
-            st.markdown("""
-            <div class="prediction-card">
-                <div style="font-size: 0.9rem; opacity: 0.8;">📊 Trend</div>
-                <div style="font-size: 1.5rem; font-weight: bold;">STABLE</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
     # Footer info
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
