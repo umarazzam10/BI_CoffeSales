@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -64,10 +65,10 @@ def load_css():
         }
         
         .trending-item {
-            text-align: center; 
-            padding: 1rem; 
-            background: white; 
-            border-radius: 10px; 
+            text-align: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 1rem;
         }
@@ -77,12 +78,12 @@ def load_css():
         }
         
         .trending-name {
-            font-weight: bold; 
+            font-weight: bold;
             margin: 0.5rem 0;
         }
         
         .trending-count {
-            color: #8B4513; 
+            color: #8B4513;
             font-weight: bold;
         }
         
@@ -346,34 +347,53 @@ def create_filters(df):
     
     return selected_year, selected_month
 
-# Fungsi untuk membuat chart trend penjualan (DIPERBAIKI)
-def create_sales_trend_chart(df):
+# Fungsi untuk membuat chart trend penjualan (DIPERBAIKI dengan Dynamic Grouping)
+def create_sales_trend_chart(df, selected_year, selected_month):
     if df is None or df.empty:
         fig = go.Figure()
-        fig.add_annotation(text="Tidak ada data untuk ditampilkan", 
+        fig.add_annotation(text="Tidak ada data untuk ditampilkan",
                           xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
         fig.update_layout(title="Trend Penjualan Coffee Shop", height=400)
         return fig
     
-    # Aggregate data by month-year
     df_chart = df.copy()
-    df_chart['month_year_str'] = df_chart['transaction_date'].dt.strftime('%Y-%m')
     
-    monthly_data = df_chart.groupby('month_year_str').agg({
+    # Tentukan grouping berdasarkan filter
+    if selected_year == "All Time":
+        # Group by year
+        df_chart['period'] = df_chart['transaction_date'].dt.year.astype(str)
+        df_chart['period_sort'] = df_chart['transaction_date'].dt.year
+        title_suffix = "per Tahun"
+        x_title = "Tahun"
+    elif selected_month and selected_month != "All Months":
+        # Group by day (untuk filter bulan tertentu)
+        df_chart['period'] = df_chart['transaction_date'].dt.strftime('%Y-%m-%d')
+        df_chart['period_sort'] = df_chart['transaction_date'].dt.day
+        title_suffix = f"per Hari ({selected_month} {selected_year})"
+        x_title = "Tanggal"
+    else:
+        # Group by month (untuk filter tahun tertentu)
+        df_chart['period'] = df_chart['transaction_date'].dt.strftime('%Y-%m')
+        df_chart['period_sort'] = df_chart['transaction_date'].dt.month
+        title_suffix = f"per Bulan ({selected_year})"
+        x_title = "Bulan"
+    
+    # Aggregate data
+    period_data = df_chart.groupby(['period', 'period_sort']).agg({
         'total_bill': 'sum',
         'transaction_id': 'nunique'
     }).reset_index()
     
-    # Sort by month_year_str
-    monthly_data = monthly_data.sort_values('month_year_str')
+    # Sort by period_sort
+    period_data = period_data.sort_values('period_sort')
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     # Revenue line
     fig.add_trace(
         go.Scatter(
-            x=monthly_data['month_year_str'],
-            y=monthly_data['total_bill'],
+            x=period_data['period'],
+            y=period_data['total_bill'],
             name="Revenue (Dollar)",
             line=dict(color='#8B4513', width=3),
             mode='lines+markers'
@@ -384,8 +404,8 @@ def create_sales_trend_chart(df):
     # Customers line
     fig.add_trace(
         go.Scatter(
-            x=monthly_data['month_year_str'],
-            y=monthly_data['transaction_id'],
+            x=period_data['period'],
+            y=period_data['transaction_id'],
             name="Total Customers",
             line=dict(color='#D2691E', width=2, dash='dash'),
             mode='lines+markers'
@@ -393,12 +413,12 @@ def create_sales_trend_chart(df):
         secondary_y=True,
     )
     
-    fig.update_xaxes(title_text="Periode")
+    fig.update_xaxes(title_text=x_title)
     fig.update_yaxes(title_text="Revenue (Dolar)", secondary_y=False)
     fig.update_yaxes(title_text="Total Customers", secondary_y=True)
     
     fig.update_layout(
-        title="Trend Penjualan Coffee Shop",
+        title=f"Trend Penjualan Coffee Shop {title_suffix}",
         height=400,
         showlegend=True,
         plot_bgcolor='white',
@@ -407,31 +427,38 @@ def create_sales_trend_chart(df):
     
     return fig
 
-# Fungsi untuk membuat chart menu performance
-def create_menu_performance_chart(df):
+# Fungsi untuk membuat chart menu performance (DIPERBAIKI - menggunakan df_filtered)
+def create_menu_performance_chart(df, selected_year, selected_month):
     if df is None or df.empty:
         fig = go.Figure()
-        fig.add_annotation(text="Tidak ada data untuk ditampilkan", 
+        fig.add_annotation(text="Tidak ada data untuk ditampilkan",
                           xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
         fig.update_layout(title="Top Menu Items Performance", height=400)
         return fig
     
-    # Top menu items
+    # Top menu items dari data yang sudah difilter
     menu_performance = df.groupby('product_detail').agg({
-        'transaction_qty': 'sum',
-        'total_bill': 'sum'
-    }).reset_index().sort_values('total_bill', ascending=False).head(10)
+        'transaction_qty': 'sum'
+    }).reset_index().sort_values('transaction_qty', ascending=False).head(10)
+    
+    # Tentukan title suffix berdasarkan filter
+    if selected_year == "All Time":
+        title_suffix = "(All Time)"
+    elif selected_month and selected_month != "All Months":
+        title_suffix = f"({selected_month} {selected_year})"
+    else:
+        title_suffix = f"({selected_year})"
     
     # Create donut chart
     fig = go.Figure(data=[go.Pie(
         labels=menu_performance['product_detail'],
-        values=menu_performance['total_bill'],
+        values=menu_performance['transaction_qty'],
         hole=.6,
         marker_colors=px.colors.qualitative.Set3
     )])
     
     fig.update_layout(
-        title="Top Menu Items Performance",
+        title=f"Top Menu Items Performance {title_suffix}",
         height=400,
         showlegend=True,
         plot_bgcolor='white',
@@ -440,17 +467,26 @@ def create_menu_performance_chart(df):
     
     return fig
 
-# Fungsi untuk membuat chart revenue by category
-def create_revenue_category_chart(df):
+# Fungsi untuk membuat chart revenue by category (DIPERBAIKI - menggunakan df_filtered)
+def create_revenue_category_chart(df, selected_year, selected_month):
     if df is None or df.empty:
         fig = go.Figure()
-        fig.add_annotation(text="Tidak ada data untuk ditampilkan", 
+        fig.add_annotation(text="Tidak ada data untuk ditampilkan",
                           xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
         fig.update_layout(title="Revenue by Category", height=300)
         return fig
     
+    # Data kategori dari data yang sudah difilter
     category_revenue = df.groupby('product_category')['total_bill'].sum().reset_index()
     category_revenue = category_revenue.sort_values('total_bill', ascending=True)
+    
+    # Tentukan title suffix berdasarkan filter
+    if selected_year == "All Time":
+        title_suffix = "(All Time)"
+    elif selected_month and selected_month != "All Months":
+        title_suffix = f"({selected_month} {selected_year})"
+    else:
+        title_suffix = f"({selected_year})"
     
     fig = go.Figure(data=[go.Bar(
         x=category_revenue['total_bill'],
@@ -460,7 +496,7 @@ def create_revenue_category_chart(df):
     )])
     
     fig.update_layout(
-        title="Revenue by Category",
+        title=f"Revenue by Category {title_suffix}",
         height=300,
         xaxis_title="Revenue (Dolar)",
         yaxis_title="Category",
@@ -470,11 +506,11 @@ def create_revenue_category_chart(df):
     
     return fig
 
-# Fungsi untuk membuat chart peak hours
-def create_peak_hours_chart(df):
+# Fungsi untuk membuat chart peak hours (DIPERBAIKI untuk filter bulan/tahun)
+def create_peak_hours_chart(df, selected_year, selected_month):
     if df is None or df.empty:
         fig = go.Figure()
-        fig.add_annotation(text="Tidak ada data untuk ditampilkan", 
+        fig.add_annotation(text="Tidak ada data untuk ditampilkan",
                           xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
         fig.update_layout(title="Peak Hours Analysis - Customer Traffic", height=300)
         return fig
@@ -483,12 +519,21 @@ def create_peak_hours_chart(df):
     df_hours = df.dropna(subset=['hour'])
     if df_hours.empty:
         fig = go.Figure()
-        fig.add_annotation(text="Tidak ada data jam untuk ditampilkan", 
+        fig.add_annotation(text="Tidak ada data jam untuk ditampilkan",
                           xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
         fig.update_layout(title="Peak Hours Analysis - Customer Traffic", height=300)
         return fig
     
+    # Aggregate berdasarkan jam
     hourly_data = df_hours.groupby('hour')['transaction_qty'].sum().reset_index()
+    
+    # Tentukan title suffix berdasarkan filter
+    if selected_year == "All Time":
+        title_suffix = "(All Time)"
+    elif selected_month and selected_month != "All Months":
+        title_suffix = f"({selected_month} {selected_year})"
+    else:
+        title_suffix = f"({selected_year})"
     
     fig = go.Figure(data=[go.Bar(
         x=hourly_data['hour'],
@@ -499,7 +544,7 @@ def create_peak_hours_chart(df):
     )])
     
     fig.update_layout(
-        title="Peak Hours Analysis - Customer Traffic",
+        title=f"Peak Hours Analysis - Customer Traffic {title_suffix}",
         height=300,
         xaxis_title="Jam",
         yaxis_title="Jumlah Customer",
@@ -509,16 +554,25 @@ def create_peak_hours_chart(df):
     
     return fig
 
-# Fungsi untuk membuat branch performance chart
-def create_branch_performance_chart(df):
+# Fungsi untuk membuat branch performance chart (DIPERBAIKI - menggunakan df_filtered)
+def create_branch_performance_chart(df, selected_year, selected_month):
     if df is None or df.empty:
         fig = go.Figure()
-        fig.add_annotation(text="Tidak ada data untuk ditampilkan", 
+        fig.add_annotation(text="Tidak ada data untuk ditampilkan",
                           xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
         fig.update_layout(title="Branch Performance Comparison", height=300)
         return fig
     
+    # Data branch dari data yang sudah difilter
     branch_data = df.groupby('store_location')['total_bill'].sum().reset_index()
+    
+    # Tentukan title suffix berdasarkan filter
+    if selected_year == "All Time":
+        title_suffix = "(All Time)"
+    elif selected_month and selected_month != "All Months":
+        title_suffix = f"({selected_month} {selected_year})"
+    else:
+        title_suffix = f"({selected_year})"
     
     # Radar chart
     fig = go.Figure()
@@ -535,9 +589,9 @@ def create_branch_performance_chart(df):
         polar=dict(
             radialaxis=dict(
                 visible=True,
-                range=[0, (branch_data['total_bill'].max()) * 1.1] if not branch_data.empty else [0, 1]
+                range=[0, (branch_data['total_bill'].max())] if not branch_data.empty else [0, 1]
             )),
-        title="Branch Performance Comparison",
+        title=f"Branch Performance Comparison {title_suffix}",
         height=300
     )
     
@@ -590,7 +644,7 @@ def display_dashboard():
     
     st.markdown(f"""
     <div class="status-info">
-        <p>🕐 {current_time.strftime('%A, %d %B %Y - %H:%M:%S')} | 
+        <p>🕐 {current_time.strftime('%A, %d %B %Y - %H:%M:%S')} |
         📊 {period_text} | 📈 {total_records:,} dari {total_all_records:,} records</p>
     </div>
     """, unsafe_allow_html=True)
@@ -653,26 +707,26 @@ def display_dashboard():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        trend_chart = create_sales_trend_chart(df_filtered)
+        trend_chart = create_sales_trend_chart(df_filtered, selected_year, selected_month)
         st.plotly_chart(trend_chart, use_container_width=True)
     
     with col2:
-        menu_chart = create_menu_performance_chart(df_filtered)
+        menu_chart = create_menu_performance_chart(df_filtered, selected_year, selected_month)
         st.plotly_chart(menu_chart, use_container_width=True)
     
     # Row 2: Revenue by Category, Branch Performance, Peak Hours
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        revenue_chart = create_revenue_category_chart(df_filtered)
+        revenue_chart = create_revenue_category_chart(df_filtered, selected_year, selected_month)
         st.plotly_chart(revenue_chart, use_container_width=True)
     
     with col2:
-        branch_chart = create_branch_performance_chart(df_filtered)
+        branch_chart = create_branch_performance_chart(df_filtered, selected_year, selected_month)
         st.plotly_chart(branch_chart, use_container_width=True)
     
     with col3:
-        peak_chart = create_peak_hours_chart(df_filtered)
+        peak_chart = create_peak_hours_chart(df_filtered, selected_year, selected_month)
         st.plotly_chart(peak_chart, use_container_width=True)
     
     # Trending Menu Items
