@@ -32,8 +32,6 @@ st.markdown("""
         }
         
     
-
-    
     .step-card {
         background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
         padding: 1.5rem;

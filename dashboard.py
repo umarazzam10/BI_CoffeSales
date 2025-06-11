@@ -959,7 +959,7 @@ def display_dashboard():
                         <div class="trending-item">
                             <div class="trending-emoji">{emoji}</div>
                             <div class="trending-name">{item['product_detail']}</div>
-                            <div class="trending-count">{item['transaction_qty']} pcs</div>
+                            <div class="trending-count">{item['transaction_qty']} cup</div>
                         </div>
                         """, unsafe_allow_html=True)
     
@@ -983,10 +983,10 @@ def display_dashboard():
         st.info("🔄 Last Update: {}".format(datetime.datetime.now().strftime('%H:%M:%S')))
 
 
-# Fungsi baru untuk membuat chart Kategori Terlaris per Cabang
+# Fungsi yang diperbaiki untuk membuat chart Kategori Terlaris per Cabang
 def create_category_performance_by_branch_chart(df, selected_year, selected_month):
     """
-    Membuat stacked bar chart untuk menampilkan kategori terlaris per cabang
+    Membuat grouped bar chart untuk menampilkan kategori terlaris per cabang
     """
     try:
         if df is None or df.empty:
@@ -1001,21 +1001,25 @@ def create_category_performance_by_branch_chart(df, selected_year, selected_mont
         if category_branch_data.empty:
             return create_empty_chart("Kategori Terlaris per Cabang", "Tidak ada data kategori")
         
-        # Define consistent colors for categories (coffee shop theme - cream & brown)
+        # Define consistent colors for categories (sesuai dengan gambar)
         category_colors = {
-            'Beverage': '#8B4513',      # Saddle Brown (dark coffee)
-            'Dessert': '#DAA520',       # Chocolate 
-            'Snack': '#BC8F8F',         # Peru (medium brown)
-            
+            'Bakery': '#FFB6C1',           # Light Pink
+            'Branded': '#98FB98',          # Pale Green  
+            'Coffee': '#87CEEB',           # Sky Blue
+            'Drinking Chocolate': '#DDA0DD', # Plum
+            'Loose Tea': '#F0E68C',        # Khaki
+            'Packaged Chocolate': '#20B2AA', # Light Sea Green
+            'Tea': '#FF6347'               # Tomato
         }
         
-        # Create stacked bar chart
+        # Create grouped bar chart (bukan stacked)
         fig = px.bar(
             category_branch_data,
             x='store_location',
             y='total_bill',
             color='product_category',
-            title="<span style='color: #2c3e50; font-weight: bold;'>Kategori Terlaris per Cabang</span>",
+            barmode='group',  # Ini yang membuat bar menjadi grouped, bukan stacked
+            title="Kategori Terlaris per Cabang",
             labels={
                 'store_location': 'Cabang',
                 'total_bill': 'Revenue ($)',
@@ -1024,45 +1028,58 @@ def create_category_performance_by_branch_chart(df, selected_year, selected_mont
             color_discrete_map=category_colors
         )
         
-        # Update layout dengan styling yang konsisten
+        # Update layout untuk tampilan yang lebih rapi
         fig.update_layout(
-            height=400,
+            height=450,
             showlegend=True,
             legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1,
-                font=dict(size=10)
+                orientation="v",      # Vertical legend seperti di gambar
+                yanchor="top",
+                y=1,
+                xanchor="left",
+                x=1.02,
+                font=dict(size=11),
+                bgcolor="rgba(255,255,255,0.8)",
+                bordercolor="rgba(0,0,0,0.1)",
+                borderwidth=1
             ),
-            xaxis_tickangle=-45,
-            margin=dict(t=80, b=80, l=60, r=60),
-            font=dict(size=10),
-            title_font=dict(size=14),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis_tickangle=0,  # Tidak miring seperti di gambar
+            margin=dict(t=60, b=80, l=80, r=150),  # Margin kanan lebih besar untuk legend
+            font=dict(size=11),
+            title_font=dict(size=16, color='#2c3e50'),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
             xaxis=dict(
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(0,0,0,0.1)'
+                title_font=dict(size=12, color='#2c3e50'),
+                tickfont=dict(size=11),
+                showgrid=False,
+                showline=True,
+                linewidth=1,
+                linecolor='rgba(0,0,0,0.3)'
             ),
             yaxis=dict(
+                title_font=dict(size=12, color='#2c3e50'),
+                tickfont=dict(size=11),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor='rgba(0,0,0,0.1)'
+                gridcolor='rgba(0,0,0,0.1)',
+                showline=True,
+                linewidth=1,
+                linecolor='rgba(0,0,0,0.3)',
+                tickformat=',.0f'  # Format angka dengan koma
             )
         )
         
-        # Update traces untuk hover template yang lebih informatif
-        for trace in fig.data:
-            category_name = trace.name
-            trace.update(
-                hovertemplate='<b>%{x}</b><br>' +
-                             f'Kategori: {category_name}<br>' +
-                             'Revenue: $%{y:,.0f}<br>' +
-                             '<extra></extra>'
+        # Update traces untuk tampilan yang lebih clean
+        fig.update_traces(
+            hovertemplate='<b>%{fullData.name}</b><br>' +
+                         'Cabang: %{x}<br>' +
+                         'Revenue: $%{y:,.0f}<br>' +
+                         '<extra></extra>',
+            marker=dict(
+                line=dict(width=0.5, color='rgba(0,0,0,0.2)')  # Border tipis pada bar
             )
+        )
         
         return fig
         
@@ -1070,7 +1087,6 @@ def create_category_performance_by_branch_chart(df, selected_year, selected_mont
         return create_empty_chart("Kategori Terlaris per Cabang", f"Error: {str(e)}")
 
 
-# Fungsi untuk refresh data
 # Fungsi untuk refresh data
 def refresh_data():
     st.cache_data.clear()
