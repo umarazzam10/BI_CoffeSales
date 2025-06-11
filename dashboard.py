@@ -7,7 +7,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
 import numpy as np
-
 # Custom CSS untuk styling
 def load_css():
     st.markdown("""
@@ -96,7 +95,6 @@ def load_css():
         }
     </style>
     """, unsafe_allow_html=True)
-
 # Fungsi untuk membuat koneksi database
 @st.cache_resource
 def create_connection():
@@ -113,7 +111,6 @@ def create_connection():
     except Exception as e:
         st.error(f"Error connecting to MySQL: {e}")
         return None
-
 # Fungsi untuk mengambil data dari database
 @st.cache_data(ttl=300)  # Cache selama 5 menit
 def fetch_data():
@@ -166,7 +163,6 @@ def fetch_data():
     except Exception as e:
         st.error(f"Error fetching data: {e}")
         return None
-
 # Fungsi untuk filter data berdasarkan periode (DIPERBAIKI)
 def filter_data_by_period(df, selected_year, selected_month=None):
     if df is None or df.empty:
@@ -212,7 +208,6 @@ def filter_data_by_period(df, selected_year, selected_month=None):
         df_previous = pd.DataFrame()
     
     return df_filtered, df_previous
-
 # Fungsi untuk menghitung KPI (DIPERBAIKI)
 def calculate_kpis(df_current, df_previous, show_growth=True):
     if df_current is None or df_current.empty:
@@ -301,7 +296,6 @@ def calculate_kpis(df_current, df_previous, show_growth=True):
         'menu_growth': menu_growth,
         'customer_growth': customer_growth,
     }
-
 # Fungsi untuk membuat filter sidebar (DIPERBAIKI)
 def create_filters(df):
     st.sidebar.markdown("## 🔍 Filter Data")
@@ -346,7 +340,6 @@ def create_filters(df):
         """, unsafe_allow_html=True)
     
     return selected_year, selected_month
-
 # Fungsi untuk membuat chart trend penjualan (DIPERBAIKI dengan Dynamic Grouping)
 def create_sales_trend_chart(df, selected_year, selected_month):
     if df is None or df.empty:
@@ -426,7 +419,6 @@ def create_sales_trend_chart(df, selected_year, selected_month):
     )
     
     return fig
-
 # Fungsi untuk membuat chart menu performance (DIPERBAIKI - menggunakan df_filtered)
 def create_menu_performance_chart(df, selected_year, selected_month):
     if df is None or df.empty:
@@ -466,7 +458,6 @@ def create_menu_performance_chart(df, selected_year, selected_month):
     )
     
     return fig
-
 # Fungsi untuk membuat chart revenue by category (DIPERBAIKI - menggunakan df_filtered)
 def create_revenue_category_chart(df, selected_year, selected_month):
     if df is None or df.empty:
@@ -505,7 +496,6 @@ def create_revenue_category_chart(df, selected_year, selected_month):
     )
     
     return fig
-
 # Fungsi untuk membuat chart peak hours (DIPERBAIKI untuk filter bulan/tahun)
 def create_peak_hours_chart(df, selected_year, selected_month):
     if df is None or df.empty:
@@ -553,7 +543,6 @@ def create_peak_hours_chart(df, selected_year, selected_month):
     )
     
     return fig
-
 # Fungsi untuk membuat branch performance chart (DIPERBAIKI - menggunakan df_filtered)
 def create_branch_performance_chart(df, selected_year, selected_month):
     if df is None or df.empty:
@@ -597,7 +586,203 @@ def create_branch_performance_chart(df, selected_year, selected_month):
     
     return fig
 
-# Fungsi utama dashboard
+# Fungsi untuk membuat chart Perbandingan Revenue vs Jumlah Customer per Cabang
+
+def create_revenue_customer_branch_chart(df, selected_year, selected_month):
+   
+    if df is None or df.empty:
+        # Return empty chart with message
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False,
+            font=dict(size=16, color="gray")
+        )
+        fig.update_layout(
+            title="Revenue vs Customer per Branch",
+            height=400,
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False)
+        )
+        return fig
+    
+    # Agregasi data per cabang
+    branch_stats = df.groupby('store_location').agg({
+        'total_bill': 'sum',           # Total revenue per branch
+        'transaction_id': 'nunique',   # Unique customers per branch
+        'transaction_qty': 'sum'       # Total items sold
+    }).reset_index()
+    
+    branch_stats.columns = ['Branch', 'Revenue', 'Customers', 'Items_Sold']
+    
+    # Hitung rata-rata revenue per customer
+    branch_stats['Revenue_per_Customer'] = branch_stats['Revenue'] / branch_stats['Customers']
+    
+    # Definisi warna untuk setiap cabang
+    colors = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F4A460', '#D2691E', '#BC8F8F', '#A0522D']
+    
+    # Buat scatter plot
+    fig = go.Figure()
+    
+    for idx, row in branch_stats.iterrows():
+        fig.add_trace(go.Scatter(
+            x=[row['Customers']],
+            y=[row['Revenue']],
+            mode='markers+text',
+            name=row['Branch'],
+            text=[row['Branch']],
+            textposition="top center",
+            marker=dict(
+                size=max(10, min(30, row['Items_Sold'] / 50)),  # Size based on items sold
+                color=colors[idx % len(colors)],
+                opacity=0.8,
+                line=dict(width=2, color='white')
+            ),
+            hovertemplate=(
+                f"<b>{row['Branch']}</b><br>" +
+                f"Customers: {row['Customers']:,}<br>" +
+                f"Revenue: ${row['Revenue']:,.0f}<br>" +
+                f"Revenue/Customer: ${row['Revenue_per_Customer']:.0f}<br>" +
+                f"Items Sold: {row['Items_Sold']:,}<br>" +
+                "<extra></extra>"
+            ),
+            showlegend=False
+        ))
+    
+    # Update layout
+    fig.update_layout(
+        title={
+            'text': "Revenue vs Customer per Branch",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 16, 'color': '#8B4513'}
+        },
+        xaxis=dict(
+            title="Number of Customers",
+            showgrid=True,
+            gridcolor='lightgray',
+            gridwidth=0.5
+        ),
+        yaxis=dict(
+            title="Total Revenue ($)",
+            showgrid=True,
+            gridcolor='lightgray',
+            gridwidth=0.5,
+            tickformat='$,.0f'
+        ),
+        height=400,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(family="Arial", size=10, color="#333"),
+        margin=dict(l=60, r=20, t=60, b=50)
+    )
+    
+    # Tambahkan trendline jika ada lebih dari 2 data point
+    if len(branch_stats) > 2:
+        # Hitung correlation
+        correlation = branch_stats['Customers'].corr(branch_stats['Revenue'])
+        
+        # Buat trendline
+        z = np.polyfit(branch_stats['Customers'], branch_stats['Revenue'], 1)
+        p = np.poly1d(z)
+        
+        x_trend = np.linspace(branch_stats['Customers'].min(), branch_stats['Customers'].max(), 100)
+        y_trend = p(x_trend)
+        
+        fig.add_trace(go.Scatter(
+            x=x_trend,
+            y=y_trend,
+            mode='lines',
+            name=f'Trend (Correlation={correlation:.2f})',
+            line=dict(color='red', width=2, dash='dash'),
+            hovertemplate="<extra></extra>",
+            showlegend=True
+        ))
+    
+    return fig
+
+# Fungsi tambahan untuk membuat chart Revenue per Customer Ratio
+def create_revenue_per_customer_chart(df, selected_year, selected_month):
+    """
+    Membuat bar chart untuk revenue per customer ratio per cabang
+    """
+    if df is None or df.empty:
+        # Return empty chart with message
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False,
+            font=dict(size=16, color="gray")
+        )
+        fig.update_layout(
+            title="Revenue per Customer by Branch",
+            height=350,
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False)
+        )
+        return fig
+    
+    # Agregasi data per cabang
+    branch_stats = df.groupby('store_location').agg({
+        'total_bill': 'sum',
+        'transaction_id': 'nunique'
+    }).reset_index()
+    
+    branch_stats.columns = ['Branch', 'Revenue', 'Customers']
+    branch_stats['Revenue_per_Customer'] = branch_stats['Revenue'] / branch_stats['Customers']
+    branch_stats = branch_stats.sort_values('Revenue_per_Customer', ascending=True)
+    
+    # Warna gradient
+    colors = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F4A460']
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        y=branch_stats['Branch'],
+        x=branch_stats['Revenue_per_Customer'],
+        orientation='h',
+        marker=dict(
+            color=colors[:len(branch_stats)],
+            opacity=0.8,
+            line=dict(color='white', width=1)
+        ),
+        text=[f'${val:.0f}' for val in branch_stats['Revenue_per_Customer']],
+        textposition='outside',
+        hovertemplate=(
+            "<b>%{y}</b><br>" +
+            "Revenue/Customer: $%{x:.0f}<br>" +
+            "<extra></extra>"
+        )
+    ))
+    
+    fig.update_layout(
+        title={
+            'text': "Revenue per Customer by Branch",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 14, 'color': '#8B4513'}
+        },
+        xaxis=dict(
+            title="Revenue per Customer ($)",
+            tickformat='$,.0f'
+        ),
+        yaxis=dict(title="Branch"),
+        height=350,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(family="Arial", size=10, color="#333"),
+        margin=dict(l=100, r=50, t=50, b=40),
+        showlegend=False
+    )
+    
+    return fig
+
+# Update fungsi display_dashboard untuk menambahkan chart baru
+# Update fungsi display_dashboard untuk menambahkan chart baru
 def display_dashboard():
     # Load CSS
     load_css()
@@ -729,6 +914,17 @@ def display_dashboard():
         peak_chart = create_peak_hours_chart(df_filtered, selected_year, selected_month)
         st.plotly_chart(peak_chart, use_container_width=True)
     
+    # Row 3: Revenue vs Customer Analysis and Category Performance by Branch
+    col1, col2 = st.columns([1.5, 1])
+    
+    with col1:
+        revenue_customer_chart = create_revenue_customer_branch_chart(df_filtered, selected_year, selected_month)
+        st.plotly_chart(revenue_customer_chart, use_container_width=True)
+    
+    with col2:
+        category_branch_chart = create_category_performance_by_branch_chart(df_filtered, selected_year, selected_month)
+        st.plotly_chart(category_branch_chart, use_container_width=True)
+    
     # Trending Menu Items
     st.markdown("## 🔥 Trending Menu Items")
     
@@ -763,7 +959,7 @@ def display_dashboard():
                         <div class="trending-item">
                             <div class="trending-emoji">{emoji}</div>
                             <div class="trending-name">{item['product_detail']}</div>
-                            <div class="trending-count">{item['transaction_qty']} cup</div>
+                            <div class="trending-count">{item['transaction_qty']} pcs</div>
                         </div>
                         """, unsafe_allow_html=True)
     
@@ -786,6 +982,95 @@ def display_dashboard():
     with col3:
         st.info("🔄 Last Update: {}".format(datetime.datetime.now().strftime('%H:%M:%S')))
 
+
+# Fungsi baru untuk membuat chart Kategori Terlaris per Cabang
+def create_category_performance_by_branch_chart(df, selected_year, selected_month):
+    """
+    Membuat stacked bar chart untuk menampilkan kategori terlaris per cabang
+    """
+    try:
+        if df is None or df.empty:
+            return create_empty_chart("Kategori Terlaris per Cabang", "Tidak ada data")
+        
+        # Group data by branch and category
+        category_branch_data = df.groupby(['store_location', 'product_category']).agg({
+            'total_bill': 'sum',
+            'transaction_qty': 'sum'
+        }).reset_index()
+        
+        if category_branch_data.empty:
+            return create_empty_chart("Kategori Terlaris per Cabang", "Tidak ada data kategori")
+        
+        # Define consistent colors for categories (coffee shop theme - cream & brown)
+        category_colors = {
+            'Beverage': '#8B4513',      # Saddle Brown (dark coffee)
+            'Dessert': '#DAA520',       # Chocolate 
+            'Snack': '#BC8F8F',         # Peru (medium brown)
+            
+        }
+        
+        # Create stacked bar chart
+        fig = px.bar(
+            category_branch_data,
+            x='store_location',
+            y='total_bill',
+            color='product_category',
+            title="<span style='color: #2c3e50; font-weight: bold;'>Kategori Terlaris per Cabang</span>",
+            labels={
+                'store_location': 'Cabang',
+                'total_bill': 'Revenue ($)',
+                'product_category': 'Kategori'
+            },
+            color_discrete_map=category_colors
+        )
+        
+        # Update layout dengan styling yang konsisten
+        fig.update_layout(
+            height=400,
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                font=dict(size=10)
+            ),
+            xaxis_tickangle=-45,
+            margin=dict(t=80, b=80, l=60, r=60),
+            font=dict(size=10),
+            title_font=dict(size=14),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(0,0,0,0.1)'
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(0,0,0,0.1)'
+            )
+        )
+        
+        # Update traces untuk hover template yang lebih informatif
+        for trace in fig.data:
+            category_name = trace.name
+            trace.update(
+                hovertemplate='<b>%{x}</b><br>' +
+                             f'Kategori: {category_name}<br>' +
+                             'Revenue: $%{y:,.0f}<br>' +
+                             '<extra></extra>'
+            )
+        
+        return fig
+        
+    except Exception as e:
+        return create_empty_chart("Kategori Terlaris per Cabang", f"Error: {str(e)}")
+
+
+# Fungsi untuk refresh data
 # Fungsi untuk refresh data
 def refresh_data():
     st.cache_data.clear()
