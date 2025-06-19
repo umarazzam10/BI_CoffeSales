@@ -54,17 +54,16 @@ Pastikan sistem Anda memiliki:
 
 ## 📝 File Struktur Project
 
-BI_CoffeSales/
+CoffeSales_Project_BI/
 │
 ├── main.py # File utama aplikasi
-├── etl.py # Module ETL process
+├── etl_script.py # Module ETL process
 ├── dashboard.py # Module dashboard analytics
 ├── prediction.py # Module predictive analytics
-├── config.py # Konfigurasi database
 ├── requirements.txt # Dependencies Python
 ├── README.md # Dokumentasi ini
 │
-├── Project.csv
+├── dataset.csv
 
 ### 2. Buat Virtual Environment (Opsional namun direkomendasikan)
 
