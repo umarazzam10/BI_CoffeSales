@@ -125,8 +125,8 @@ def main():
     
     elif page == "🔄 ETL":
         # Memanggil fungsi ETL
-        import etl
-        etl.display_etl()
+        import etl_script
+        etl_script.display_etl()
 
     elif page == "📊 Analytics Dashboard":
         # Memanggil fungsi Dashboard
